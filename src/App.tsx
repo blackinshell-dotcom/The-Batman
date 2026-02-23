@@ -53,11 +53,11 @@ const COLORS = ['#00ffff', 'rgba(255, 255, 255, 0.05)'];
 export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // ✅ DB-backed state defaults (no localStorage)
+  // ✅ DB-backed defaults (replaces localStorage init)
   const [habits, setHabits] = useState<Habit[]>(INITIAL_HABITS);
   const [completions, setCompletions] = useState<HabitCompletion>({});
 
-  // ✅ prevents saving defaults before we load from DB
+  // ✅ Stop saving until initial load completes
   const [hydrated, setHydrated] = useState(false);
   
   // Undo History
@@ -118,7 +118,7 @@ export default function App() {
         const res = await fetch('/api/state', { cache: 'no-store' });
         const data = await res.json();
 
-        // if DB is empty {}, keep defaults
+        // If DB returns {}, keep defaults
         if (data && typeof data === 'object') {
           if (Array.isArray((data as any).habits)) setHabits((data as any).habits);
           if ((data as any).completions && typeof (data as any).completions === 'object') {
@@ -133,7 +133,7 @@ export default function App() {
     })();
   }, []);
 
-  // ✅ SAVE to D1 via Pages Function (replaces localStorage)
+  // ✅ SAVE to D1 via Pages Function (replaces localStorage effects)
   useEffect(() => {
     if (!hydrated) return;
 
@@ -465,7 +465,7 @@ export default function App() {
                   <tr className="border-b border-white/10">
                     <th 
                       style={{ width: `${descriptionWidth}px`, minWidth: `${descriptionWidth}px` }}
-                      className="sticky left-0 z-20 bg-[#0F0F0F] p-6 text-left border-r border-white/10 relative group/header"
+                      className="sticky top-0 left-0 z-30 bg-[#0F0F0F] p-6 text-left border-r border-white/10 relative group/header"
                     >
                       <span className="col-header">Habit Description</span>
                       <div 
@@ -478,7 +478,7 @@ export default function App() {
                     </th>
                     {daysInMonth.map(day => (
                       <th key={day.toString()} className={cn(
-                        "p-3 text-center min-w-[45px] border-r border-white/5 relative transition-colors duration-500",
+                        "p-3 text-center min-w-[45px] border-r border-white/5 relative transition-colors duration-500 sticky top-0 z-20 bg-[#0F0F0F]",
                         isSameDay(day, new Date()) && "bg-[#00ffff]/15"
                       )}>
                         <div className="flex flex-col items-center relative z-10">
@@ -500,7 +500,7 @@ export default function App() {
                         )}
                       </th>
                     ))}
-                    <th className="p-6 text-center border-l border-white/10 bg-[#0F0F0F]">
+                    <th className="p-6 text-center border-l border-white/10 bg-[#0F0F0F] sticky top-0 z-20">
                       <span className="col-header">Efficiency</span>
                     </th>
                   </tr>
