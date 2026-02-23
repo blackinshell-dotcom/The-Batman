@@ -52,14 +52,13 @@ const COLORS = ['#00ffff', 'rgba(255, 255, 255, 0.05)'];
 
 export default function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [habits, setHabits] = useState<Habit[]>(() => {
-    const saved = localStorage.getItem('habit_definitions');
-    return saved ? JSON.parse(saved) : INITIAL_HABITS;
-  });
-  const [completions, setCompletions] = useState<HabitCompletion>(() => {
-    const saved = localStorage.getItem('habit_completions');
-    return saved ? JSON.parse(saved) : {};
-  });
+
+  // ✅ DB-backed state defaults (no localStorage)
+  const [habits, setHabits] = useState<Habit[]>(INITIAL_HABITS);
+  const [completions, setCompletions] = useState<HabitCompletion>({});
+
+  // ✅ prevents saving defaults before we load from DB
+  const [hydrated, setHydrated] = useState(false);
   
   // Undo History
   const [history, setHistory] = useState<{ habits: Habit[], completions: HabitCompletion }[]>([]);
@@ -112,13 +111,46 @@ export default function App() {
     };
   }, [isResizing]);
 
+  // ✅ LOAD from D1 via Pages Function
   useEffect(() => {
-    localStorage.setItem('habit_definitions', JSON.stringify(habits));
-  }, [habits]);
+    (async () => {
+      try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        const data = await res.json();
 
+        // if DB is empty {}, keep defaults
+        if (data && typeof data === 'object') {
+          if (Array.isArray((data as any).habits)) setHabits((data as any).habits);
+          if ((data as any).completions && typeof (data as any).completions === 'object') {
+            setCompletions((data as any).completions);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load state from /api/state', e);
+      } finally {
+        setHydrated(true);
+      }
+    })();
+  }, []);
+
+  // ✅ SAVE to D1 via Pages Function (replaces localStorage)
   useEffect(() => {
-    localStorage.setItem('habit_completions', JSON.stringify(completions));
-  }, [completions]);
+    if (!hydrated) return;
+
+    const body = { habits, completions };
+
+    (async () => {
+      try {
+        await fetch('/api/state', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch (e) {
+        console.warn('Failed to save state to /api/state', e);
+      }
+    })();
+  }, [habits, completions, hydrated]);
 
   const addHabit = () => {
     if (!newValue.trim()) return;
